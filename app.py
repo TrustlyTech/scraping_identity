@@ -4,14 +4,11 @@ import requests
 import json
 import base64
 import psycopg2
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
+import time
+import undetected_chromedriver.v2 as uc
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import time
 
 app = Flask(__name__)
 
@@ -29,11 +26,7 @@ def connect_db():
 def init_db():
     conn = connect_db()
     cur = conn.cursor()
-    
-    # Borra la tabla si existe
     cur.execute("DROP TABLE IF EXISTS requisitoriados;")
-    
-    # Crea la tabla nuevamente
     cur.execute("""
         CREATE TABLE requisitoriados (
             id SERIAL PRIMARY KEY,
@@ -42,11 +35,9 @@ def init_db():
             imagen TEXT
         );
     """)
-
     conn.commit()
     cur.close()
     conn.close()
-
 
 def insert_person_db(nombre, recompensa, imagen):
     try:
@@ -138,11 +129,11 @@ def save_base64_image(base64_string, filename):
         f.write(base64.b64decode(image_data))
 
 def extract_images():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    options = uc.ChromeOptions()
+    options.headless = True
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    driver = uc.Chrome(options=options)
 
     if not os.path.exists('imagenes'):
         os.makedirs('imagenes')
@@ -180,12 +171,10 @@ def extract_images():
                     save_base64_image(image_url, image_filename)
                     image_url = image_filename
 
-                # Azure
                 person_id = create_person_in_group(name, reward)
                 if person_id:
                     add_face_to_person(person_id, name, image_url)
 
-                # DB
                 insert_person_db(name, reward, image_url)
 
             except Exception as e:
